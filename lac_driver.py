@@ -41,8 +41,7 @@ import usb.core
 
 __author__ = 'Mark L Saunders'
 
-
-#import ctypes as ct
+# import ctypes as ct
 
 VENDOR_LAC = 0x04d8
 PRODUCT_LAC = 0xfc5f
@@ -89,6 +88,7 @@ class USBAPI:
 
     def USBWrite(self, control, value):
         # Convert value into high & low bit
+
         low = value & 0xff
         high = (value & 0xff00) >> 8
 
@@ -107,7 +107,7 @@ class USBAPI:
 
     def USBRead(self):
         # Construct buffer type
-        #read_buffer_type = ct.c_uint8 * 64
+        # read_buffer_type = ct.c_uint8 * 64
 
         # create buffer instance
         # read_buffer = read_buffer_type()
@@ -140,9 +140,10 @@ class LACDriver:
         # get response
         # self.lac.USBRead()
 
-    def set_position(self, position):
+    def set_position_mm(self, position):
         # Convert position to register value
         set_value = int((position / self.stroke) * 1023)
+
         if set_value > 1023:
             set_value = 1023
         if set_value < 1:
@@ -161,7 +162,31 @@ class LACDriver:
         response = self.lac.USBRead()
         return response
 
-    def set_extend_limits_counts(self, limit):
+    def get_position_mm(self):
+        # send command
+        self.lac.USBWrite(GET_FEEDBACK, 0)
+
+        # get response - raw counts
+        counts = self.lac.USBRead()
+
+        response = counts * self.stroke/1024
+        return response
+
+    def set_extend_limits_mm(self, limit):
+        counts = limit * 1024 / self.stroke
+
+        if counts > 1024:
+            value = 1024
+        elif counts < 0:
+            value = 0
+        else:
+            value = int(counts)
+
+        print('set_extend_limits_mm value = %d' % value)
+        # send command
+        self.lac.USBWrite(SET_EXTEND_LIMIT, value)
+
+    def set_extend_limits(self, limit):
         if limit > 1024:
             value = 1024
         elif limit < 0:
@@ -174,9 +199,23 @@ class LACDriver:
         # get response
         # self.lac.USBRead()
 
-    def set_retract_limits_counts(self, limit):
-        if limit > 100:
-            value = 100
+
+    def set_retract_limits_mm(self, limit):
+        counts = limit * 1024 / self.stroke
+
+        if counts > 1024:
+            value = 1024
+        elif counts < 0:
+            value = 0
+        else:
+            value = int(counts)
+
+        # send command
+        self.lac.USBWrite(SET_RETRACT_LIMIT, value)
+
+    def set_retract_limits(self, limit):
+        if limit > 1024:
+            value = 1024
         elif limit < 0:
             value = 0
         else:
@@ -202,30 +241,3 @@ class LACDriver:
 
         # get response
         # return self.lac.USBRead()
-
-
-'''
-ultimately I want these commands to exist within the LACDriver class:
-
-set_speed()
-set_position()
-get_position()
-set_extend_limits()
-set_retract_limits()
-and others as necessary.
-
-#Open a FirgelliLAC instance: instance#: 0; stroke: 50mm
-LAC = firgelli.FirgelliLAC(0, 50)
-
-#Change some parameters
-LAC.set_stall_time(1000) # [milliseconds]
-LAC.set_accuracy(1) # [mm]
-LAC.set_retract_limit(0) # [mm]
-
-#Set a new position
-LAC.set_position(0) # [mm]
-
-#Close read and write handle
-LAC.close()
-
-'''
